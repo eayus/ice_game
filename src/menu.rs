@@ -5,6 +5,8 @@ use resources::Resources;
 
 use scene::{SceneAction, Sceneable, Scene};
 
+use transition::{Transition, Easing, Type};
+
 use sfml::window::{Event, Key};
 use sfml::graphics::{Text, Color, RenderWindow, RenderTarget, Transformable};
 
@@ -22,7 +24,7 @@ pub struct MainMenu<'a> {
 
 impl<'a> MainMenu<'a> {
 
-    const SELECTED_COLOR: Color = Color { r: 84, g: 97, b: 112, a: 255 };
+    const SELECTED_COLOR: Color = Color { r: 195, g: 77, b: 88, a: 255 };
 
     pub fn new(res: &Resources) -> Box<MainMenu> {
         let title_text = Text::new("Ice Game", &res.menu_res.raleway, 36);
@@ -46,11 +48,12 @@ impl<'a> MainMenu<'a> {
             current_item: 0,
         });
 
+        let title_width = menu.title_text.local_bounds().width;
         menu.title_text.set_fill_color(&TEXT_COLOR);
-        menu.title_text.set_position((100.0, 100.0));
+        menu.title_text.set_position(( (WINDOW_WIDTH as f32 - title_width) / 2.0, 100.0));
 
         for (index, menu_item) in menu.menu_items.iter_mut().enumerate() {
-            menu_item.text.set_position((300.0, 300.0 + (index * 100) as f32));
+            menu_item.text.set_position((350.0, 240.0 + (index * 100) as f32));
         }
 
         menu.update_colors();

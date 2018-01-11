@@ -16,6 +16,9 @@ use menu::MainMenu;
 
 mod level;
 
+mod transition;
+use transition::{Easing, Type, Transition};
+
 // TODO: Change to float
 const WINDOW_WIDTH: u32 = 960;
 const WINDOW_HEIGHT: u32 = 640;
@@ -94,48 +97,4 @@ impl<'a> Sceneable for SplashScene<'a> {
     }
 }
 
-enum Easing {
-    Linear,
-}
 
-enum Type {
-    In,
-    Out,
-}
-
-struct Transition {
-    total_frames: u32,
-    elapsed_frames: u32,
-    running: bool,
-    // Store function which maps the percent to opacity?
-}
-
-impl Transition {
-    fn new(duration_in_frames: u32, easing: Easing, trans_type: Type) -> Transition {
-        Transition {
-            total_frames: duration_in_frames,
-            elapsed_frames: 0,
-            running: false,
-        }
-    }
-
-    fn start(&mut self) {
-        self.running = true;
-    }
-
-    fn update(&mut self) -> bool {
-        if self.running {
-            self.elapsed_frames += 1;
-        }
-        self.elapsed_frames >= self.total_frames
-    }
-
-    fn get_opacity(&self) -> u8 {
-        use std::cmp;
-        let mut percent = self.elapsed_frames as f64 / self.total_frames as f64;
-        if percent > 1.0 {
-            percent = 1.0;
-        }
-        ( 255.0 * (1.0 - percent) ) as u8
-    }
-}
