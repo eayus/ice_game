@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use level::{Direction, Tile, TileMap};
 
 use sfml::system::{Vector2, Vector2f, Vector2i};
-use sfml::graphics::{Color, RenderWindow, RectangleShape, Shape, Transformable};
+use sfml::graphics::{Color, RenderWindow, RenderTarget, RectangleShape, Shape, Transformable};
 
 #[derive(Debug)]
 pub enum Action {
@@ -16,6 +16,7 @@ pub struct Player {
     action_counter: u32,
     window_pos: Vector2f,
     map_pos: Vector2i,
+    reached_target: bool,
 }
 
 impl Player {
@@ -35,6 +36,7 @@ impl Player {
             window_pos: Vector2::new(starting_position.x as f32 * 65.0, starting_position.y as f32 * 65.0),
             action_counter: 0,
             map_pos: starting_position,
+            reached_target: false,
         }
     }
 
@@ -75,12 +77,14 @@ impl Player {
 
     }
 
-    pub fn draw(&self, window: &RenderWindow) {
+    pub fn draw(&self, window: &mut RenderWindow, position: Vector2f) {
 
         // TODO: Store the rect instead of position?
-        let rect = RectangleShape::with_size(Vector2::new(64.0, 64.0));
-        rect.set_position((self.window_pos.x, self.window_pos.y));
+        let mut rect = RectangleShape::with_size(Vector2::new(64.0, 64.0));
+        rect.set_position((position.x + self.window_pos.x, position.y + self.window_pos.y));
         rect.set_fill_color(&Self::COLOR);
+
+        window.draw(&rect);
 
     }
 
@@ -95,6 +99,10 @@ impl Player {
     pub fn set_direction(&mut self, dir: Direction, tile_map: &TileMap) {
 
         if !self.is_ready() {
+            return;
+        }
+
+        if self.reached_target() {
             return;
         }
 
@@ -155,6 +163,7 @@ impl Player {
 
                 Tile::Target => {
                     self.add_action(Action::Move{ dir, steps: count + 1 });
+                    self.reached_target = true;
                     break;
                 },
 
@@ -166,6 +175,10 @@ impl Player {
 
         }
 
+    }
+
+    pub fn reached_target(&self) -> bool {
+        self.is_ready() && self.reached_target
     }
 
 }

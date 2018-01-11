@@ -3,7 +3,7 @@ use self::player::Player;
 
 use resources::Resources;
 
-use scene::{Scene, SceneAction};
+use scene::{Scene, SceneAction, Sceneable};
 
 use sfml::window::{Event, Key};
 use sfml::system::{Vector2i, Vector2f, Vector2};
@@ -34,8 +34,8 @@ pub struct TileMap {
 
 // Change this to a const-generic when it becomes a feature.
 pub struct Level {
-    tile_map: TileMap,
     player: Player,
+    map_id: usize,
 }
 
 impl Tile {
@@ -46,7 +46,7 @@ impl Tile {
     const TELEPORTER_COLOR: Color = Color { r: 255, g: 107, b: 107, a: 255 };
     const ONEWAY_COLOR: Color = Color { r: 195, g: 77, b: 88, a: 255 };
 
-    fn draw(&self, window: &RenderWindow, position: Vector2f) {
+    fn draw(&self, window: &mut RenderWindow, position: Vector2f) {
 
         let mut rect = RectangleShape::with_size(Vector2::new(64.0, 64.0));
         rect.set_position(position);
@@ -89,13 +89,18 @@ impl Tile {
             Tile::OneWay(dir) => {
                 let rot = dir.get_rot();
 
-                let triangle = ConvexShape::new(3);
+                let mut triangle = ConvexShape::new(3);
 
-                triangle.set_point(0, (position.x + 32.0, position.y + 8.0));
-                triangle.set_point(1, (position.x + 8.0, position.y + 56.0));
-                triangle.set_point(2, (position.x + 56.0, position.y + 56.0));
+                triangle.set_point(0, (32.0, 8.0));
+                triangle.set_point(1, (8.0, 56.0));
+                triangle.set_point(2, (56.0, 56.0));
+
+                triangle.set_origin((32.0, 32.0));
+                triangle.rotate(rot as f32);
 
                 triangle.set_fill_color(&Self::ONEWAY_COLOR);
+
+                triangle.move_((position.x + 32.0, position.y + 32.0));
 
                 window.draw(&triangle);
 
@@ -136,7 +141,7 @@ impl Direction {
 impl TileMap {
 
     // Maps
-    pub const MAPS: [TileMap; 2] = [
+    pub const MAPS: [TileMap; 3] = [
         TileMap {
             tiles: [
                 [Tile::Start, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Wall, Tile::Empty, Tile::Empty],
@@ -149,6 +154,16 @@ impl TileMap {
 
         TileMap {
             tiles: [
+                [Tile::Empty, Tile::Empty, Tile::Empty, Tile::Start, Tile::Empty, Tile::OneWay(Direction::Right), Tile::Empty, Tile::Empty],
+                [Tile::Empty, Tile::Wall, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty],
+                [Tile::Empty, Tile::Empty, Tile::Target, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Wall, Tile::Empty],
+                [Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty],
+                [Tile::Empty, Tile::Empty, Tile::Empty, Tile::Wall, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty],
+            ],
+        },
+
+        TileMap {
+            tiles: [
                 [Tile::Empty, Tile::Empty, Tile::Wall, Tile::Start, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty],
                 [Tile::Teleporter(0), Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty],
                 [Tile::Empty, Tile::Wall, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty],
@@ -156,6 +171,7 @@ impl TileMap {
                 [Tile::Empty, Tile::Empty, Tile::OneWay(Direction::Right), Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty, Tile::Empty],
             ],
         },
+
     ];
 
     const GRID_LINE_COLOR: Color = Color {
@@ -165,17 +181,17 @@ impl TileMap {
         a: 64,
     };
 
-    pub fn new(tiles: [[Tile; 8]; 5]) -> TileMap {
-        TileMap { tiles }
+    pub fn new(map_id: usize) -> TileMap {
+        Self::MAPS[map_id].clone()
     }
 
-    fn draw(&self, window: &mut RenderWindow) {
+    fn draw(&self, window: &mut RenderWindow, position: Vector2f) {
 
         for (y, &row) in self.tiles.iter().enumerate() {
 
             for (x, &tile) in row.iter().enumerate() {
 
-                tile.draw(window, Vector2::new( (x * 65) as f32, (y * 65) as f32 ))
+                tile.draw(window, Vector2::new( (x * 65) as f32 + position.x, (y * 65) as f32 + position.y))
 
             }
 
@@ -186,14 +202,14 @@ impl TileMap {
 
         for y in 1..self.tiles.len() {
             rect.set_size((self.tiles[0].len() as f32 * 65.0, 1.0));
-            rect.set_position((0.0, (y * 65) as f32 - 1.0));
+            rect.set_position((position.x, (y * 65) as f32 - 1.0 + position.y));
 
             window.draw(&rect);
         }
 
         for x in 1..self.tiles[0].len() {
             rect.set_size((1.0, self.tiles.len() as f32 * 65.0));
-            rect.set_position(((x * 65) as f32 - 1.0, 0.0));
+            rect.set_position(((x * 65) as f32 - 1.0 + position.x, position.y));
 
             window.draw(&rect);
         }
@@ -247,63 +263,75 @@ impl Level {
         a: 255,
     };
 
-    pub fn new(level_id: usize) -> Level {
+    pub fn new(level_id: usize) -> Box<Level> {
 
-        let tile_map = TileMap::MAPS[level_id].clone();
+        let tile_map = &TileMap::MAPS[level_id];
 
         let player_pos = tile_map.get_tile(|tile: &Tile, _pos: Vector2i| -> bool {
             *tile == Tile::Start
         }).expect("There is no start tile!");
 
-        Level {
-            tile_map,
+        Box::new(Level {
             player: Player::new(player_pos),
-        }
+            map_id: level_id,
+        })
 
+    }
+
+    fn next_map(&mut self) {
+        self.map_id += 1;
+
+        let player_pos = TileMap::MAPS[self.map_id].get_tile(|tile: &Tile, _pos: Vector2i| -> bool {
+            *tile == Tile::Start
+        }).expect("There is no start tile!");
+
+        self.player = Player::new(player_pos);
     }
 
     pub fn move_player(&mut self, dir: Direction) {
 
-        self.player.set_direction(dir, &self.tile_map);
+        self.player.set_direction(dir, /*&self.tile_map*/ &TileMap::MAPS[self.map_id]);
 
     }
 
 
 }
 
-impl Scene for Level {
+impl Sceneable for Level {
 
-    fn update(&mut self) -> SceneAction {
+    fn update(&mut self, _resources: &Resources) -> SceneAction {
         self.player.update();
+
+        if self.player.reached_target() {
+            self.next_map();
+        }
+
         SceneAction::NoChange
     }
 
     fn draw(&self, window: &mut RenderWindow) {
         window.clear(&Self::BG_COLOR);
 
-        let map_width = self.tile_map.tiles[0].len() as f32 * 65.0;
-        let map_height = self.tile_map.tiles.len() as f32 * 65.0;
+        let map_width = TileMap::MAPS[self.map_id].tiles[0].len() as f32 * 65.0;
+        let map_height = TileMap::MAPS[self.map_id].tiles.len() as f32 * 65.0;
 
         // TODO: Remove hard-coded screen resolution.
         let map_x = (960.0 - map_width) / 2.0;
         let map_y = (640.0 - map_height) / 2.0;
 
-        /*
-        let transform = Matrix4::new_translation(&Vector3::new(map_x, map_y, 0.0));
-        graphics::push_transform(ctx, Some(transform));
-        graphics::apply_transformations(ctx);
-*/
-        let rect = RectangleShape::with_size(Vector2::new(map_width + 65.0, map_height + 65.0));
-        rect.set_position(Vector2::new(-32.0, -32.0));
+        // TODO: Use a Transform rather than passing a poition, and use trans.tranform_point on the points.
+
+        let mut rect = RectangleShape::with_size(Vector2::new(map_width + 65.0, map_height + 65.0));
+        rect.set_position(Vector2::new(map_x - 32.0, map_y - 32.0));
         rect.set_fill_color(&Self::ROUNDED_BG_COLOR);
 
         window.draw(&rect);
 
-        self.tile_map.draw(window);
-        self.player.draw(window);
+        TileMap::MAPS[self.map_id].draw(window, Vector2::new(map_x, map_y));
 
-        //graphics::pop_transform(ctx);
-        //graphics::apply_transformations(ctx);
+        //self.tile_map.draw(window, Vector2::new(map_x, map_y));
+        self.player.draw(window, Vector2::new(map_x, map_y));
+
     }
 
     fn handle_event(&mut self, event: Event, resources: &Resources) -> SceneAction {
@@ -314,7 +342,7 @@ impl Scene for Level {
                 Key::W => self.move_player(Direction::Up),
                 Key::S => self.move_player(Direction::Down),
 
-                Key::F => return SceneAction::Change(Box::new(::menu::MainMenu::new(resources))),
+                Key::F => return SceneAction::Change(Scene::MainMenu),
                 _ => {},
             },
             _ => {},

@@ -5,17 +5,19 @@ use sfml::graphics::Font;
 // Option<T>? so that they can be initialsed at a later date. Perhaps this is what futures are for?
 pub struct Resources {
     pub menu_res: MenuResources,
+    pub num: i32,
 }
 
 impl Resources {
     pub fn new() -> Resources {
         Resources {
             menu_res: MenuResources::new(),
+            num: 0,
         }
     }
 }
 
-struct MenuResources {
+pub struct MenuResources {
     pub raleway: Font,
 }
 

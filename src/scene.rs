@@ -2,35 +2,56 @@ use sfml::graphics::RenderWindow;
 use sfml::window::Event;
 
 use resources::Resources;
+use ::SplashScene;
+use menu::MainMenu;
+use level::Level;
 
-pub type SceneStack = Vec<Box<Scene>>;
+// TODO: Add transitions
 
-pub trait Scene {
-    fn update(&mut self) -> SceneAction;
+pub trait Sceneable {
+    fn update(&mut self, resources: &Resources) -> SceneAction;
     fn draw(&self, window: &mut RenderWindow);
     fn handle_event(&mut self, event: Event, resources: &Resources) -> SceneAction;
 }
 
+#[derive(Clone)]
+pub enum Scene {
+    Splash,
+    Level(usize), // Level ID
+    MainMenu,
+}
+
+impl Scene {
+    fn to_obj<'a>(self, resources: &'a Resources) -> Box<Sceneable + 'a> {
+        match self {
+            Scene::Splash => SplashScene::new(resources),
+            Scene::Level(id) => Level::new(id),
+            Scene::MainMenu => MainMenu::new(resources),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum SceneAction {
     NoChange,
-    Push(Box<Scene>),
-    Change(Box<Scene>),
+    Push(Scene),
+    Change(Scene),
     Pop(u32), // u32 is number of times to pop
     Quit,
 }
 
-pub struct SceneManager {
-    scenes: SceneStack,
-    should_exit: bool,
-    resources: Resources,
+pub struct SceneManager<'a> {
+    pub scenes: Vec<Box<Sceneable + 'a>>,
+    pub should_exit: bool,
+    //pub resources: &'a Resources,
 }
 
-impl SceneManager {
-    pub fn new(initial_scene: Box<Scene>, resources: Resources) -> SceneManager {
+impl<'a> SceneManager<'a> {
+    pub fn new(initial_scene: Box<Sceneable + 'a>) -> SceneManager<'a> {
         SceneManager {
             scenes: vec![initial_scene],
             should_exit: false,
-            resources,
+            //resources,
         }
     }
 
@@ -38,20 +59,20 @@ impl SceneManager {
         self.should_exit
     }
 
-    fn handle_scene_action(&mut self, action: SceneAction) {
+    fn handle_scene_action(&mut self, action: SceneAction, resources: &'a Resources) {
         match action {
             SceneAction::NoChange => {},
 
-            SceneAction::Push(new_state) => {
-                self.scenes.push(new_state);
+            SceneAction::Push(scene) => {
+                self.scenes.push(scene.to_obj(resources));
             },
 
-            SceneAction::Change(new_state) => {
-                *self.scenes.last_mut().unwrap() = new_state;
+            SceneAction::Change(scene) => {
+                *self.scenes.last_mut().unwrap() = scene.to_obj(resources);
             },
 
             SceneAction::Pop(n) => {
-                for i in 0..n {
+                for _i in 0..n {
                     self.scenes.pop();
                 }
             },
@@ -62,9 +83,9 @@ impl SceneManager {
         };
     }
 
-    pub fn update(&mut self) {
-        let action = self.scenes.last_mut().unwrap().update();
-        self.handle_scene_action(action);
+    pub fn update(&mut self, resources: &'a Resources) {
+        let action = self.scenes.last_mut().unwrap().update(resources);
+        self.handle_scene_action(action, resources);
     }
 
     pub fn draw(&mut self, window: &mut RenderWindow) {
@@ -75,8 +96,8 @@ impl SceneManager {
         window.display();
     }
 
-    pub fn handle_event(&mut self, event: Event) {
-        let action = self.scenes.last_mut().unwrap().handle_event(event, &self.resources);
-        self.handle_scene_action(action);
+    pub fn handle_event(&mut self, event: Event, resources: &'a Resources) {
+        let action = self.scenes.last_mut().unwrap().handle_event(event, resources);
+        self.handle_scene_action(action, resources);
     }
 }

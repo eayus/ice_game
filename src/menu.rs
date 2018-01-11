@@ -1,14 +1,14 @@
 use std::cmp;
-use ::{WINDOW_HEIGHT, WINDOW_WIDTH};
+use ::{WINDOW_HEIGHT, WINDOW_WIDTH, BG_COLOR, TEXT_COLOR};
 
 use resources::Resources;
 
-use scene::{SceneAction, Scene};
+use scene::{SceneAction, Sceneable, Scene};
 
 use sfml::window::{Event, Key};
 use sfml::graphics::{Text, Color, RenderWindow, RenderTarget, Transformable};
 
-use level::Level;
+//use level::Level;
 
 // Play
 // Credits
@@ -21,81 +21,66 @@ pub struct MainMenu<'a> {
 }
 
 impl<'a> MainMenu<'a> {
-    const BG_COLOR: Color = Color {
-        r: 240,
-        g: 240,
-        b: 240,
-        a: 255,
-    };
 
-    const TEXT_COLOR: Color = Color {
-        r: 25,
-        g: 25,
-        b: 25,
-        a: 255,
-    };
+    const SELECTED_COLOR: Color = Color { r: 84, g: 97, b: 112, a: 255 };
 
-    pub fn new(res: &'a Resources) -> Box<MainMenu<'a>> {
+    pub fn new(res: &Resources) -> Box<MainMenu> {
         let title_text = Text::new("Ice Game", &res.menu_res.raleway, 36);
 
         let play_text = MenuItem::new(
             Text::new("Play", &res.menu_res.raleway, 28),
-            Box::new(move || {
-                SceneAction::Change(Box::new(Level::new(0)))
-            //StateAction::Change(Box::new(LevelSelect { font: tmp_font.clone() }))
-            })
+            SceneAction::Change(Scene::Level(0))
         );
         let credits_text = MenuItem::new(
             Text::new("Credits", &res.menu_res.raleway, 28),
-            Box::new(|| {
-                SceneAction::NoChange
-            })
+            SceneAction::NoChange
         );
         let exit_text = MenuItem::new(
             Text::new("Quit", &res.menu_res.raleway, 28),
-            Box::new(|| {
-                SceneAction::Quit
-            })
+            SceneAction::Quit
         );
         
-        let menu: Box<MainMenu + 'a> = Box::new(MainMenu {
+        let mut menu: Box<MainMenu> = Box::new(MainMenu {
             title_text,
             menu_items: [play_text, credits_text, exit_text],
             current_item: 0,
         });
 
-        menu.title_text.set_fill_color(&Self::TEXT_COLOR);
+        menu.title_text.set_fill_color(&TEXT_COLOR);
         menu.title_text.set_position((100.0, 100.0));
 
-        for (index, menu_item) in menu.menu_items.iter().enumerate() {
+        for (index, menu_item) in menu.menu_items.iter_mut().enumerate() {
             menu_item.text.set_position((300.0, 300.0 + (index * 100) as f32));
         }
 
+        menu.update_colors();
+
         menu
+    }
+
+    fn update_colors(&mut self) {
+        for (index, menu_item) in self.menu_items.iter_mut().enumerate() {
+            if index == self.current_item {
+                menu_item.text.set_fill_color(&Self::SELECTED_COLOR);
+            } else {
+                menu_item.text.set_fill_color(&TEXT_COLOR);
+            }
+        }
     }
 }
 
-impl<'a> Scene for MainMenu<'a> {
-    fn update(&mut self) -> SceneAction {
+impl<'a> Sceneable for MainMenu<'a> {
+    fn update(&mut self, _res: &Resources) -> SceneAction {
         SceneAction::NoChange
     }
 
     fn draw(&self, window: &mut RenderWindow) {
-        window.clear(&Self::BG_COLOR);
+        window.clear(&BG_COLOR);
 
         window.draw(&self.title_text);
 
-        for (index, menu_item) in self.menu_items.iter().enumerate() {
-
-            if index == self.current_item {
-                // TODO: Change to a constants e.g. TEXT_SELECTED_COLOR
-                menu_item.text.set_fill_color(&Color::rgba(255, 0, 0, 255));
-            } else {
-                menu_item.text.set_fill_color(&Self::TEXT_COLOR);
-            }
-
+        for menu_item in self.menu_items.iter() {
             window.draw(&menu_item.text);
-
         }
 
     }
@@ -108,14 +93,18 @@ impl<'a> Scene for MainMenu<'a> {
                     if self.current_item != 0 {
                         self.current_item -= 1;
                     }
+
+                    self.update_colors();
                 },
 
                 Key::Down => {
                     self.current_item = cmp::min(self.current_item + 1, self.menu_items.len() - 1);
+
+                    self.update_colors();
                 },
 
                 Key::Return => {
-                    return (self.menu_items.get(self.current_item).unwrap().on_click)();
+                    return self.menu_items.get(self.current_item).unwrap().target_scene.clone();
                 }
 
                 _ => {},
@@ -128,15 +117,15 @@ impl<'a> Scene for MainMenu<'a> {
 
 struct MenuItem<'a> {
     text: Text<'a>,
-    on_click: Box<Fn() -> SceneAction>,
+    target_scene: SceneAction,
 }
 
 impl<'a> MenuItem<'a> {
-    fn new(text: Text, on_click: Box<Fn() -> SceneAction>) -> MenuItem
+    fn new(text: Text, target_scene: SceneAction) -> MenuItem
     {
         MenuItem {
             text,
-            on_click,
+            target_scene,
         }
     }
 }
