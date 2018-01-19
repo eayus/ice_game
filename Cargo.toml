@@ -4,8 +4,5 @@ version = "0.1.0"
 authors = ["Ellis Kesterton <ellis@diagnosticbox.com>"]
 
 [dependencies]
-rand = "*"
-ggez = "0.4"
-nalgebra = "0.13"
-lazy_static = "1.0"
 sfml = "0.14.0"
+num = "*"

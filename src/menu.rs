@@ -5,7 +5,7 @@ use resources::Resources;
 
 use scene::{SceneAction, Sceneable, Scene};
 
-use transition::{Transition, Easing, Type};
+use transition::Transition;
 
 use sfml::window::{Event, Key};
 use sfml::graphics::{Text, Color, RenderWindow, RenderTarget, Transformable};

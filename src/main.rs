@@ -17,7 +17,7 @@ use menu::MainMenu;
 mod level;
 
 mod transition;
-use transition::{Easing, Type, Transition};
+use transition::{Transition, Delay};
 
 // TODO: Change to float
 const WINDOW_WIDTH: u32 = 960;
@@ -27,6 +27,9 @@ const BG_COLOR: Color = Color { r: 240, g: 240, b: 240, a: 255 };
 const TEXT_COLOR: Color = Color { r: 50, g: 50, b: 50, a: 255 };
 
 fn main() {
+
+    let a = 100.0;
+    let b: u8 = a as u8;
 
     let mut window = RenderWindow::new(VideoMode::new(WINDOW_WIDTH, WINDOW_HEIGHT, 32), "Ice Puzzle Game", Style::CLOSE, &ContextSettings::default());
     window.set_vertical_sync_enabled(true);
@@ -51,7 +54,7 @@ fn main() {
 
 struct SplashScene<'a> {
     text: Text<'a>,
-    trans: Transition,
+    trans: Transition<u8>,
 }
 
 impl<'a> SplashScene<'a> {
@@ -64,7 +67,7 @@ impl<'a> SplashScene<'a> {
                 t.set_fill_color(&TEXT_COLOR);
                 t
             },
-            trans: Transition::new(60, Easing::Linear, Type::Out),
+            trans: Transition::new(255, 0, 60, Delay::Post(60)),
         })
     }
 }
@@ -72,7 +75,7 @@ impl<'a> SplashScene<'a> {
 impl<'a> Sceneable for SplashScene<'a> {
     fn update(&mut self, _res: &Resources) -> SceneAction {
         let mut color = TEXT_COLOR;
-        color.a = self.trans.get_opacity();
+        color.a = self.trans.get_val();
         self.text.set_fill_color(&color);
 
         if self.trans.update() {
@@ -89,8 +92,6 @@ impl<'a> Sceneable for SplashScene<'a> {
 
     fn handle_event(&mut self, event: Event, resources: &Resources) -> SceneAction {
         if let Event::KeyPressed { code: Key::Return, .. } = event {
-            //SceneAction::Change(Scene::MainMenu);
-            //SceneAction::NoChange
             self.trans.start();
         }
         SceneAction::NoChange
