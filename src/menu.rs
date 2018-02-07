@@ -5,7 +5,7 @@ use resources::Resources;
 
 use scene::{SceneAction, Sceneable, Scene};
 
-use transition::Transition;
+use transition::{Transition, Delay};
 
 use sfml::window::{Event, Key};
 use sfml::graphics::{Text, Color, RenderWindow, RenderTarget, Transformable};
@@ -20,6 +20,7 @@ pub struct MainMenu<'a> {
     title_text: Text<'a>,
     menu_items: [MenuItem<'a>; 3],
     current_item: usize,
+    trans: Transition<u8>,
 }
 
 impl<'a> MainMenu<'a> {
@@ -41,12 +42,16 @@ impl<'a> MainMenu<'a> {
             Text::new("Quit", &res.menu_res.raleway, 28),
             SceneAction::Quit
         );
+        let trans = Transition::new(0, 255, 60, Delay::None);
         
         let mut menu: Box<MainMenu> = Box::new(MainMenu {
             title_text,
             menu_items: [play_text, credits_text, exit_text],
             current_item: 0,
+            trans,
         });
+
+        menu.trans.start();
 
         let title_width = menu.title_text.local_bounds().width;
         menu.title_text.set_fill_color(&TEXT_COLOR);
@@ -64,9 +69,17 @@ impl<'a> MainMenu<'a> {
     fn update_colors(&mut self) {
         for (index, menu_item) in self.menu_items.iter_mut().enumerate() {
             if index == self.current_item {
-                menu_item.text.set_fill_color(&Self::SELECTED_COLOR);
+                let mut color = menu_item.text.fill_color();
+                color.r = Self::SELECTED_COLOR.r;
+                color.g = Self::SELECTED_COLOR.g;
+                color.b = Self::SELECTED_COLOR.b;
+                menu_item.text.set_fill_color(&color);
             } else {
-                menu_item.text.set_fill_color(&TEXT_COLOR);
+                let mut color = menu_item.text.fill_color();
+                color.r = TEXT_COLOR.r;
+                color.g = TEXT_COLOR.g;
+                color.b = TEXT_COLOR.b;
+                menu_item.text.set_fill_color(&color);
             }
         }
     }
@@ -74,6 +87,20 @@ impl<'a> MainMenu<'a> {
 
 impl<'a> Sceneable for MainMenu<'a> {
     fn update(&mut self, _res: &Resources) -> SceneAction {
+        let alpha = self.trans.get_val();
+
+        let mut color = self.title_text.fill_color();
+        color.a = alpha;
+        self.title_text.set_fill_color(&color);
+
+        for menu_item in self.menu_items.iter_mut() {
+            color = menu_item.text.fill_color();
+            color.a = alpha;
+            menu_item.text.set_fill_color(&color);
+        }
+
+        self.trans.update();
+
         SceneAction::NoChange
     }
 
@@ -124,8 +151,7 @@ struct MenuItem<'a> {
 }
 
 impl<'a> MenuItem<'a> {
-    fn new(text: Text, target_scene: SceneAction) -> MenuItem
-    {
+    fn new(text: Text, target_scene: SceneAction) -> MenuItem {
         MenuItem {
             text,
             target_scene,

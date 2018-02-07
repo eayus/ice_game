@@ -43,7 +43,6 @@ pub enum SceneAction {
 pub struct SceneManager<'a> {
     pub scenes: Vec<Box<Sceneable + 'a>>,
     pub should_exit: bool,
-    //pub resources: &'a Resources,
 }
 
 impl<'a> SceneManager<'a> {
@@ -65,16 +64,19 @@ impl<'a> SceneManager<'a> {
 
             SceneAction::Push(scene) => {
                 self.scenes.push(scene.to_obj(resources));
+                self.update(resources);
             },
 
             SceneAction::Change(scene) => {
                 *self.scenes.last_mut().unwrap() = scene.to_obj(resources);
+                self.update(resources);
             },
 
             SceneAction::Pop(n) => {
                 for _i in 0..n {
                     self.scenes.pop();
                 }
+                self.update(resources);
             },
 
             SceneAction::Quit => {

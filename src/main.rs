@@ -19,6 +19,10 @@ mod level;
 mod transition;
 use transition::{Transition, Delay};
 
+struct IntArray<const WIDTH: usize> {
+    array: [i32; WIDTH],
+}
+
 // TODO: Change to float
 const WINDOW_WIDTH: u32 = 960;
 const WINDOW_HEIGHT: u32 = 640;
@@ -27,9 +31,6 @@ const BG_COLOR: Color = Color { r: 240, g: 240, b: 240, a: 255 };
 const TEXT_COLOR: Color = Color { r: 50, g: 50, b: 50, a: 255 };
 
 fn main() {
-
-    let a = 100.0;
-    let b: u8 = a as u8;
 
     let mut window = RenderWindow::new(VideoMode::new(WINDOW_WIDTH, WINDOW_HEIGHT, 32), "Ice Puzzle Game", Style::CLOSE, &ContextSettings::default());
     window.set_vertical_sync_enabled(true);

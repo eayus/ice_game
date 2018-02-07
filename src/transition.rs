@@ -71,7 +71,8 @@ impl<T> Transition<T>
 
 // Const generic?
 fn lerp_no_delay(from: f64, to: f64, perc: f64) -> f64 {
-    from + ((to - from) * perc)
+    let new_perc = clamp(perc, 0.0, 1.0);
+    from + ((to - from) * new_perc)
 }
 
 fn lerp_post_delay(from: f64, to: f64, perc: f64, delay_perc: f64) -> f64 {
